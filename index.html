@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Football SIEM — Live</title>
+<style>
+  :root{--bg:#070b11;--line:#1c2733;--dim:#516576;--txt:#c2d0dd;--txt-bright:#eef4fa;--info:#39d98a;--warn:#f5b544;--crit:#ff4d6d;--cyan:#36c5f0;--home:#5a6dff;--away:#39d98a;--mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;--sans:"Inter",system-ui,sans-serif;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden}
+  body{background:radial-gradient(1200px 600px at 70% -10%,rgba(54,197,240,.06),transparent 60%),linear-gradient(0deg,#060910,#0a1018);color:var(--txt);font-family:var(--sans);padding:10px;overflow:hidden}
+  .console{width:100%;max-width:1460px;height:calc(100vh - 20px);margin:0 auto;background:linear-gradient(180deg,#0c1119,#0a0f16);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.6);position:relative;display:grid;grid-template-rows:auto auto auto 1fr}.console::before{content:"";position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(#141d28 1px,transparent 1px),linear-gradient(90deg,#141d28 1px,transparent 1px);background-size:38px 38px;opacity:.25;mask-image:radial-gradient(circle at 50% 30%,#000,transparent 80%)}
+  .topbar{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#10171f,#0c1219);position:relative;z-index:2;flex-wrap:wrap}.brand{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-weight:700;letter-spacing:.14em;font-size:12px;color:var(--txt-bright)}.brand b{color:var(--cyan)}
+  .badge-live{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--info);border:1px solid rgba(57,217,138,.35);padding:3px 8px;border-radius:20px;background:rgba(57,217,138,.07)}.control-btn{border:1px solid rgba(54,197,240,.45);background:rgba(54,197,240,.08);color:var(--txt-bright);font-family:var(--mono);font-size:10px;letter-spacing:.12em;padding:6px 10px;border-radius:8px;cursor:pointer;transition:.2s;position:relative;z-index:50}.control-btn:hover{background:rgba(54,197,240,.16)}.control-btn:disabled{opacity:.45;cursor:not-allowed}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--info);animation:pulse 1.1s infinite}@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}.spacer{flex:1}.clock{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--txt-bright)}.clock small{color:var(--dim);font-weight:500;font-size:10px;margin-left:4px}
+  .threat,.soc-badge{font-family:var(--mono);font-size:10px;letter-spacing:.1em;padding:4px 9px;border-radius:6px;font-weight:700;border:1px solid var(--line);color:var(--dim);transition:.4s}.soc-badge{color:var(--cyan);border-color:rgba(54,197,240,.32);background:rgba(54,197,240,.08)}.threat[data-lvl="ELEVATED"]{color:var(--warn);border-color:rgba(245,181,68,.4);background:rgba(245,181,68,.08)}.threat[data-lvl="CRITICAL"]{color:var(--crit);border-color:rgba(255,77,109,.45);background:rgba(255,77,109,.1);animation:flash 1.1s infinite}@keyframes flash{0%,100%{box-shadow:0 0 0 rgba(255,77,109,0)}50%{box-shadow:0 0 18px rgba(255,77,109,.4)}}
+  .score{display:grid;grid-template-columns:220px 120px 220px 1fr;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line);position:relative;z-index:2;background:rgba(10,15,22,.5)}.team{display:flex;align-items:center;gap:8px;font-family:var(--mono)}.team .nm{font-weight:700;font-size:13px;color:var(--txt-bright)}.team .rk{font-size:9px;color:var(--dim);letter-spacing:.08em}.team .chip{width:8px;height:18px;border-radius:3px}.team.home .chip{background:var(--home);box-shadow:0 0 12px rgba(90,109,255,.5)}.team.away .chip{background:var(--away);box-shadow:0 0 12px rgba(57,217,138,.5)}.scoreline{font-family:var(--mono);font-size:24px;font-weight:800;color:var(--txt-bright);min-width:84px;text-align:center}.scoreline .x{color:var(--dim);font-weight:400;margin:0 6px}
+  .metrics{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;min-width:160px}.metric{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:9px;color:var(--dim)}.metric .lbl{width:44px}.bar{flex:1;height:6px;border-radius:4px;background:#16202b;overflow:hidden;display:flex}.bar .h{background:linear-gradient(90deg,#5a6dff,#7d8bff);height:100%;transition:width .8s}.bar .a{background:linear-gradient(90deg,#2bbd78,#39d98a);height:100%;transition:width .8s}.metric .val{width:70px;text-align:right;color:var(--txt)}
+  .storybar{display:grid;grid-template-columns:220px 1fr 220px;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line);background:rgba(8,14,22,.82);position:relative;z-index:2}.story-card{border:1px solid var(--line);border-radius:10px;background:#0d141d;padding:10px 12px}.story-card .k{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase}.story-card .v{margin-top:6px;font-family:var(--mono);font-size:20px;font-weight:800;color:var(--txt-bright)}.story-card .sub{margin-top:4px;font-family:var(--mono);font-size:10px;color:var(--dim);line-height:1.4}
+  .story-center{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 14px;border:1px solid rgba(54,197,240,.22);border-radius:12px;background:linear-gradient(180deg,rgba(54,197,240,.05),rgba(10,15,22,.18))}.story-copy .eyebrow{font-family:var(--mono);font-size:9px;letter-spacing:.16em;color:var(--cyan);text-transform:uppercase}.story-copy h2{margin-top:6px;font-family:var(--mono);font-size:21px;color:var(--txt-bright)}.story-copy p{margin-top:6px;font-family:var(--mono);font-size:11px;line-height:1.6;color:var(--dim)}.story-chip{min-width:180px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#0a121a}.story-chip .label{font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:.12em;text-transform:uppercase}.story-chip .value{margin-top:5px;font-family:var(--mono);font-size:17px;font-weight:800;color:var(--txt-bright)}
+  .main-grid{display:grid;grid-template-columns:minmax(0,1.45fr) 360px;min-height:0;position:relative;z-index:2}.left-col{border-right:1px solid var(--line);display:grid;grid-template-rows:auto minmax(0,1fr)}.section-h{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:9px;letter-spacing:.16em;color:var(--dim);text-transform:uppercase}.section-h .ct{color:var(--cyan)}
+  .focus-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:10px 12px;border-bottom:1px solid var(--line)}.focus-card{border:1px solid var(--line);border-radius:8px;background:#0d141d;padding:9px 10px}.focus-card .k{font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase}.focus-card .v{margin-top:5px;font-family:var(--mono);font-size:20px;font-weight:800;color:var(--txt-bright)}.focus-card .sub{margin-top:4px;font-family:var(--mono);font-size:10px;color:var(--dim);line-height:1.35}
+  .stream-shell{display:grid;grid-template-columns:minmax(0,1fr) 290px;min-height:0}.stream-main{border-right:1px solid var(--line);display:grid;grid-template-rows:auto minmax(0,1fr);min-height:0}.event-header{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:9px;letter-spacing:.16em;color:var(--dim);text-transform:uppercase}
+  .log{overflow:auto;padding:6px 0;min-height:0}.log-inner{padding:0 12px;display:flex;flex-direction:column;gap:2px}.row{font-family:var(--mono);font-size:9px;line-height:1.35;display:grid;grid-template-columns:54px 48px 54px 78px 68px 58px 1fr;gap:6px;padding:4px 0;border-bottom:1px dashed rgba(28,39,51,.45);animation:rowin .35s}@keyframes rowin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}.row .sev{font-weight:700}.row .t,.row .src,.row .mitre,.row .sensor,.row .rule{color:var(--dim)}.row .tag{color:var(--cyan)}.row.info .sev{color:var(--info)}.row.warn .sev{color:var(--warn)}.row.crit .sev{color:var(--crit)}.row.crit{background:linear-gradient(90deg,rgba(255,77,109,.1),transparent)}
+  .side-brief{display:grid;grid-template-rows:auto auto auto;min-height:0}.mini-panel{padding:10px 12px;border-bottom:1px solid var(--line);overflow:hidden}.mini-panel:last-child{border-bottom:0}.mini-title{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase;margin-bottom:7px}.inc-list,.timeline-list,.playbook-list{display:flex;flex-direction:column;gap:6px;max-height:100%;overflow:auto}.inc,.timeline,.play{border:1px solid var(--line);border-radius:7px;background:#0c131b;padding:8px 9px}.inc .name,.timeline .name,.play .name{font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--dim);text-transform:uppercase}.inc .meta,.timeline .meta,.play .meta{margin-top:3px;font-family:var(--mono);font-size:10px;color:var(--dim);line-height:1.35}.inc.high{border-color:rgba(245,181,68,.35)}.inc.critical{border-color:rgba(255,77,109,.45)}.inc.low{border-color:rgba(57,217,138,.25)}.play .status{margin-top:5px;display:inline-block;font-family:var(--mono);font-size:9px;padding:2px 6px;border:1px solid var(--line);border-radius:999px}.play.running .status{color:var(--warn);border-color:rgba(245,181,68,.35)}.play.done .status{color:var(--info);border-color:rgba(57,217,138,.35)}
+  .detail-drawer{border-top:1px solid var(--line);background:rgba(8,12,18,.94);display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;min-height:0}.drawer-panel{padding:10px 12px;border-right:1px solid var(--line);overflow:hidden}.drawer-panel:last-child{border-right:0}.drawer-title{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase;margin-bottom:7px}.hunt-list,.metrics-list,.tech-grid{display:flex;flex-direction:column;gap:6px;max-height:100%;overflow:auto}.hunt,.kv{border:1px solid var(--line);border-radius:7px;background:#0c131b;padding:8px 9px}.hunt .name,.kv .name{font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--dim);text-transform:uppercase}.hunt .meta,.kv .meta{margin-top:3px;font-family:var(--mono);font-size:10px;color:var(--dim);line-height:1.35}.kv .value{margin-top:4px;font-family:var(--mono);font-size:15px;font-weight:800;color:var(--txt-bright)}.tech-grid{display:grid;grid-template-columns:1fr 1fr}.tcell{display:flex;align-items:center;gap:8px;padding:7px 8px;border:1px solid var(--line);border-radius:7px;font-family:var(--mono);font-size:10px;background:#0c131b;transition:.35s;color:var(--dim)}.tcell .id{font-weight:700}.tcell .nm{flex:1;color:var(--txt)}.tcell .led{width:7px;height:7px;border-radius:50%;background:#23303d;transition:.35s}.tcell.on{border-color:rgba(245,181,68,.4);background:rgba(245,181,68,.06);color:var(--warn)}.tcell.on .led{background:var(--warn);box-shadow:0 0 10px var(--warn)}.tcell.on .nm{color:var(--txt-bright)}
+  .alert-wrap{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:30}.alert{min-width:300px;max-width:70%;background:linear-gradient(180deg,#1a0e16,#160b12);border:1px solid var(--crit);border-radius:14px;padding:16px 18px;box-shadow:0 0 0 1px rgba(255,77,109,.3),0 24px 70px rgba(0,0,0,.7),0 0 60px rgba(255,77,109,.25);opacity:0;transform:scale(.92) translateY(10px);transition:.3s}.alert.show{opacity:1;transform:none}.alert.warn{border-color:var(--warn);box-shadow:0 0 0 1px rgba(245,181,68,.3),0 24px 70px rgba(0,0,0,.7),0 0 50px rgba(245,181,68,.2)}.alert.ok{border-color:var(--info);box-shadow:0 0 0 1px rgba(57,217,138,.3),0 24px 70px rgba(0,0,0,.7),0 0 50px rgba(57,217,138,.2)}.alert .hd{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--crit);margin-bottom:8px}.alert.warn .hd{color:var(--warn)}.alert.ok .hd{color:var(--info)}.alert .hd .sq{width:9px;height:9px;background:currentColor;border-radius:2px;animation:pulse .8s infinite}.alert .ttl{font-family:var(--mono);font-size:20px;font-weight:800;color:var(--txt-bright);margin-bottom:9px}.alert .det{font-family:var(--mono);font-size:11px;color:var(--txt);line-height:1.5}.alert .mitre{margin-top:10px;display:inline-flex;gap:8px;font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--cyan);border:1px solid rgba(54,197,240,.3);padding:4px 8px;border-radius:6px;background:rgba(54,197,240,.06)}
+  .overlay-restart{position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:60;background:rgba(3,7,12,.38);backdrop-filter:blur(2px);pointer-events:none}.overlay-restart.show{display:flex;pointer-events:auto}.overlay-card{min-width:320px;max-width:460px;padding:22px 24px;border-radius:16px;border:1px solid rgba(54,197,240,.38);background:linear-gradient(180deg,#0f1722,#0a1018);box-shadow:0 18px 60px rgba(0,0,0,.55),0 0 40px rgba(54,197,240,.12);text-align:center}.overlay-card h2{font-family:var(--mono);font-size:24px;color:var(--txt-bright);margin-bottom:10px}.overlay-card p{font-family:var(--mono);font-size:11px;line-height:1.6;color:var(--dim);margin-bottom:18px}.overlay-card button{pointer-events:auto;font-size:12px;padding:10px 16px}
+  @media(max-width:1180px){html,body{overflow:auto}body{overflow:auto}.console{height:auto;min-height:100vh;overflow:visible}.main-grid{grid-template-columns:1fr}.storybar{grid-template-columns:1fr}.left-col{border-right:0;border-bottom:1px solid var(--line)}.focus-grid,.telemetry-grid{grid-template-columns:repeat(2,1fr)}.stream-shell{grid-template-columns:1fr}.stream-main{border-right:0;border-bottom:1px solid var(--line)}.detail-drawer{grid-template-columns:1fr}.row{grid-template-columns:60px 58px 66px 95px 90px 70px 1fr}}@media(max-width:760px){.score{grid-template-columns:1fr}.metrics,.focus-grid,.telemetry-grid,.tech-grid{grid-template-columns:1fr}.row{grid-template-columns:1fr}.topbar{align-items:flex-start}}
+</style>
+</head>
+<body>
+<div class="console">
+  <div class="topbar">
+    <div class="brand"><b>◆</b> FOOTBALL<span style="color:var(--dim)">_</span>SIEM <span style="color:var(--dim);font-weight:500">// live secops bridge</span></div>
+    <button class="control-btn" id="startBtn">▶ START DEMO</button>
+    <div class="badge-live"><span class="dot"></span>LIVE</div>
+    <div class="soc-badge" id="socMode">SOC MODE · BRIDGE ARMED</div>
+    <div class="spacer"></div>
+    <div class="clock" id="clock">00'</div>
+    <div class="threat" id="threat" data-lvl="NOMINAL">THREAT&nbsp;·&nbsp;NOMINAL</div>
+  </div>
+  <div class="score">
+    <div class="team home"><span class="chip"></span><div><div class="nm" id="hName">—</div><div class="rk" id="hSeed"></div></div></div>
+    <div class="scoreline"><span id="hs">0</span><span class="x">:</span><span id="as">0</span></div>
+    <div class="team away"><div style="text-align:right"><div class="nm" id="aName">—</div><div class="rk" id="aSeed"></div></div><span class="chip"></span></div>
+    <div class="metrics">
+      <div class="metric"><span class="lbl">POSS</span><div class="bar"><div class="h" id="possH"></div><div class="a" id="possA"></div></div><span class="val" id="possV">—</span></div>
+      <div class="metric"><span class="lbl">SHOTS</span><div class="bar"><div class="h" id="shH"></div><div class="a" id="shA"></div></div><span class="val" id="shV">—</span></div>
+      <div class="metric"><span class="lbl">xG</span><div class="bar"><div class="h" id="xgH"></div><div class="a" id="xgA"></div></div><span class="val" id="xgV">—</span></div>
+      <div class="metric"><span class="lbl">TILT</span><div class="bar"><div class="h" id="tiltH"></div><div class="a" id="tiltA"></div></div><span class="val" id="tiltV">—</span></div>
+    </div>
+  </div>
+  <div class="storybar">
+    <div class="story-card">
+      <div class="k">Situation</div>
+      <div class="v" id="storyThreat">Nominal</div>
+      <div class="sub" id="storyThreatSub">No upset signal yet.</div>
+    </div>
+    <div class="story-center">
+      <div class="story-copy">
+        <div class="eyebrow">What is happening now</div>
+        <h2 id="heroTitle">Pipeline staged</h2>
+        <p id="heroCopy">Arm the replay and watch the match mutate into a live incident stream with a clear narrative: situation, evidence, and response.</p>
+      </div>
+      <div class="story-chip">
+        <div class="label">Why it matters</div>
+        <div class="value" id="whyNow">Monitoring for control drift</div>
+      </div>
+    </div>
+    <div class="story-card">
+      <div class="k">Primary Incident</div>
+      <div class="v" id="storyIncident">Awaiting event</div>
+      <div class="sub" id="storyIncidentSub">No active incident yet.</div>
+    </div>
+  </div>
+  <div class="main-grid">
+    <div class="left-col">
+      <div class="focus-grid">
+        <div class="focus-card"><div class="k">Threat score</div><div class="v" id="threatScore">05</div><div class="sub" id="threatSub">baseline nominal</div></div>
+        <div class="focus-card"><div class="k">xG delta</div><div class="v" id="xgDelta">+0.00</div><div class="sub" id="xgSub">Expected threat parity</div></div>
+        <div class="focus-card"><div class="k">Transition risk</div><div class="v" id="transitionRisk">0</div><div class="sub" id="transitionSub">Counter lanes closed</div></div>
+        <div class="focus-card"><div class="k">Rest defense</div><div class="v" id="restDefenseGap">0</div><div class="sub" id="restSub">Cover stable</div></div>
+      </div>
+      <div class="stream-shell">
+        <div class="stream-main">
+          <div class="event-header"><span>▸ Event evidence · latest log lines</span><span class="ct" id="feedStatus">pipeline ready</span></div>
+          <div class="log" id="log"><div class="log-inner" id="logInner"></div></div>
+        </div>
+        <div class="side-brief">
+          <div class="mini-panel">
+            <div class="mini-title">Primary incidents</div>
+            <div class="inc-list" id="incidents"></div>
+          </div>
+          <div class="mini-panel">
+            <div class="mini-title">Response playbook</div>
+            <div class="playbook-list" id="playbook"></div>
+          </div>
+          <div class="mini-panel">
+            <div class="mini-title">Incident timeline</div>
+            <div class="timeline-list" id="timeline"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="detail-drawer">
+      <div class="drawer-panel">
+        <div class="drawer-title">What we are watching</div>
+        <div class="hunt-list" id="hunts"></div>
+      </div>
+      <div class="drawer-panel">
+        <div class="drawer-title">Advanced metrics</div>
+        <div class="metrics-list" id="advancedMetrics"></div>
+      </div>
+      <div class="drawer-panel">
+        <div class="drawer-title">Tactical TTP map</div>
+        <div class="tech-grid">
+          <div class="tcell" id="TAC-001"><span class="id">TAC-001</span><span class="nm">Counter-Attack</span><span class="led"></span></div>
+          <div class="tcell" id="TAC-002"><span class="id">TAC-002</span><span class="nm">High Press</span><span class="led"></span></div>
+          <div class="tcell" id="TAC-003"><span class="id">TAC-003</span><span class="nm">Low Block</span><span class="led"></span></div>
+          <div class="tcell" id="TAC-004"><span class="id">TAC-004</span><span class="nm">xG Overperformance</span><span class="led"></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="alert-wrap"><div class="alert" id="alert"></div></div>
+  <div class="overlay-restart" id="restartOverlay">
+    <div class="overlay-card">
+      <h2>Demo Finished</h2>
+      <p>The replay has already reached full-time. Click below to restart from minute 0 and watch the full incident story again.</p>
+      <button class="control-btn" id="overlayRestartBtn">▶ RESTART DEMO</button>
+    </div>
+  </div>
+</div>
+<script>
+const $=id=>document.getElementById(id);let lastSeq=0,lastAlertSeq=0;
+async function startDemo(){try{await fetch('/start',{method:'POST'});lastSeq=0;lastAlertSeq=0;$('logInner').innerHTML='';$('incidents').innerHTML='';$('hunts').innerHTML='';$('playbook').innerHTML='';$('timeline').innerHTML='';$('advancedMetrics').innerHTML='';$('alert').className='alert';$('alert').innerHTML='';$('restartOverlay').classList.remove('show');$('startBtn').disabled=true;$('overlayRestartBtn').disabled=true;setTimeout(()=>{$('startBtn').disabled=false;$('overlayRestartBtn').disabled=false;},1200);tick();}catch(e){}}
+$('startBtn').addEventListener('click', startDemo);$('overlayRestartBtn').addEventListener('click', startDemo);
+function bars(h,a,vId,vals,suf){const tot=(vals[0]+vals[1])||1;$(h).style.width=(vals[0]/tot*100)+'%';$(a).style.width=(vals[1]/tot*100)+'%';$(vId).textContent=vals[0]+suf+' · '+vals[1]+suf;}
+function fmtSigned(v,d=0){return `${v>=0?'+':''}${Number(v).toFixed(d)}`}
+function renderIncidents(items){$('incidents').innerHTML='';for(const inc of (items||[]).slice(0,2)){const d=document.createElement('div');d.className=`inc ${inc.severity}`;d.innerHTML=`<div class="name">${inc.id} · ${inc.title}</div><div class="meta">${inc.summary}</div><div class="meta">${inc.status.toUpperCase()} · ${String(inc.minute).padStart(2,'0')}'</div>`;$('incidents').appendChild(d);}}
+function renderHunts(items){$('hunts').innerHTML='';for(const hunt of (items||[]).slice(0,3)){const d=document.createElement('div');d.className='hunt';d.innerHTML=`<div class="name">${hunt.name}</div><div class="meta">${hunt.query}</div><div class="meta">hits: ${hunt.hits}</div>`;$('hunts').appendChild(d);}}
+function renderPlaybook(items){$('playbook').innerHTML='';for(const p of (items||[]).slice(0,3)){const d=document.createElement('div');d.className=`play ${p.status}`;d.innerHTML=`<div class="name">${p.title}</div><div class="meta">owner: ${p.owner} · eta: ${p.eta}</div><div class="status">${p.status.toUpperCase()}</div>`;$('playbook').appendChild(d);}}
+function renderTimeline(items){$('timeline').innerHTML='';for(const t of (items||[]).slice(0,3)){const d=document.createElement('div');d.className='timeline';d.innerHTML=`<div class="name">${String(t.minute).padStart(2,'0')}' · ${t.phase}</div><div class="meta">${t.detail}</div>`;$('timeline').appendChild(d);}}
+function renderAdvancedMetrics(s){const metrics=[['Press intensity',s.telemetry.press_intensity,`pressure ${s.pressure[0]}:${s.pressure[1]}`],['Field tilt',fmtSigned(s.telemetry.field_tilt_delta,0),`tilt ${s.field_tilt[0]}:${s.field_tilt[1]}`],['Shot pressure',fmtSigned(s.telemetry.shot_pressure,0),`shots on target ${s.shots_on[0]}:${s.shots_on[1]}`],['Line breaks',fmtSigned(s.telemetry.line_break_delta,0),`line breaks ${s.line_breaks[0]}:${s.line_breaks[1]}`]];$('advancedMetrics').innerHTML='';for(const [name,value,meta] of metrics){const d=document.createElement('div');d.className='kv';d.innerHTML=`<div class="name">${name}</div><div class="value">${value}</div><div class="meta">${meta}</div>`;$('advancedMetrics').appendChild(d);}}
+function updateStory(s){const primary=(s.incidents||[])[0];if(s.status==='READY'){$('storyThreat').textContent='Ready';$('storyThreatSub').textContent='No threat yet — waiting for kickoff.';$('heroTitle').textContent='Pipeline staged';$('heroCopy').textContent='Arm the replay and watch the match mutate into a live incident stream with a clear narrative: situation, evidence, and response.';$('whyNow').textContent='Monitoring for control drift';$('storyIncident').textContent='Awaiting event';$('storyIncidentSub').textContent='No active incident yet.';return;} if(s.status==='FT'){$('storyThreat').textContent='Resolved';$('storyThreatSub').textContent='Threat window closed after the turnaround.';$('heroTitle').textContent='Replay complete';$('heroCopy').textContent='The upset window opened, was contained, and closed with Korea’s late winner.';$('whyNow').textContent='Story complete';} else if(s.threat==='ELEVATED' || s.threat==='CRITICAL'){$('storyThreat').textContent='Upset window';$('storyThreatSub').textContent='Control metrics and scoreline are diverging.';$('heroTitle').textContent='This is the moment to watch';$('heroCopy').textContent='The favorite has the ball and territory, but the underdog is creating a live anomaly through transition events.';$('whyNow').textContent='Evidence is diverging';} else {$('storyThreat').textContent='Control building';$('storyThreatSub').textContent='No full incident yet, but territorial pressure is rising.';$('heroTitle').textContent='Pressure is building';$('heroCopy').textContent='Korea is stacking territorial control. We are watching for the exact moment it turns into an incident.';$('whyNow').textContent='Watch transition defense';}
+  if(primary){$('storyIncident').textContent=primary.title;$('storyIncidentSub').textContent=primary.summary;} else {$('storyIncident').textContent='No major incident';$('storyIncidentSub').textContent='Only low-level telemetry changes so far.';}}
+async function tick(){let s;try{s=await (await fetch('/state')).json();}catch(e){return;}
+  $('hName').textContent=s.home; $('aName').textContent=s.away; $('hSeed').textContent=s.home_seed?('SEED #'+s.home_seed):''; $('aSeed').textContent=s.away_seed?('SEED #'+s.away_seed):''; $('hs').textContent=s.score[0]; $('as').textContent=s.score[1]; updateStory(s);
+  $('clock').innerHTML=String(s.minute).padStart(2,'0')+"'<small>"+(s.status==='live'?'live':s.status.toLowerCase())+"</small>";
+  bars('possH','possA','possV',s.possession,'%'); bars('shH','shA','shV',s.shots,''); bars('xgH','xgA','xgV',s.xg,''); bars('tiltH','tiltA','tiltV',s.field_tilt,'%');
+  $('threat').dataset.lvl=s.threat; $('threat').innerHTML='THREAT&nbsp;·&nbsp;'+s.threat; $('startBtn').textContent=s.started?'▶ RESTART DEMO':'▶ START DEMO'; $('overlayRestartBtn').textContent=s.started?'▶ RESTART DEMO':'▶ START DEMO'; $('feedStatus').textContent=s.started?'evidence streaming':'pipeline staged'; $('socMode').textContent=s.started?'SOC MODE · BRIDGE LIVE':'SOC MODE · BRIDGE ARMED';
+  $('threatScore').textContent=String(s.telemetry.threat_score).padStart(2,'0'); $('threatSub').textContent=s.threat==='NOMINAL'?'baseline nominal':'scoreline diverging'; $('xgDelta').textContent=fmtSigned(s.telemetry.xg_delta,2); $('xgSub').textContent=`xG ${s.xg[0]} vs ${s.xg[1]}`; $('transitionRisk').textContent=s.telemetry.transition_risk; $('transitionSub').textContent=`transitions ${s.transitions[0]}:${s.transitions[1]}`; $('restDefenseGap').textContent=fmtSigned(s.telemetry.rest_defense_gap,0); $('restSub').textContent=`rest defense ${s.rest_defense[0]}:${s.rest_defense[1]}`;
+  renderAdvancedMetrics(s);
+  for(const k in s.techniques) $(k).classList.toggle('on', s.techniques[k]);
+  const newer=s.log.filter(r=>r.seq>lastSeq); for(const r of newer){const d=document.createElement('div'); d.className='row '+r.sev; d.innerHTML=`<span class="t">${r.ts}</span><span class="sev">[${r.sev.toUpperCase()}]</span><span class="tag">${r.tag}</span><span class="src">${r.src}</span><span class="sensor">${r.sensor}</span><span class="rule">${r.rule}</span><span class="msg">${r.msg} <span class="mitre">${r.mitre}</span></span>`; $('logInner').appendChild(d); lastSeq=r.seq;}
+  while($('logInner').children.length>8) $('logInner').removeChild($('logInner').firstChild); $('log').scrollTop=$('log').scrollHeight; $('count').textContent=s.log.length+' events';
+  renderIncidents(s.incidents); renderHunts(s.hunts); renderPlaybook(s.playbook); renderTimeline(s.timeline);
+  if(s.alert && s.alert.seq!==lastAlertSeq){lastAlertSeq=s.alert.seq; const a=$('alert'); a.className='alert '+(s.alert.kind==='warn'?'warn':s.alert.kind==='ok'?'ok':''); a.innerHTML=`<div class="hd"><span class="sq"></span>${s.alert.hd}</div><div class="ttl">${s.alert.ttl}</div><div class="det">${s.alert.det}</div><div class="mitre">▣ ${s.alert.mitre}</div>`; requestAnimationFrame(()=>a.classList.add('show')); if(!s.alert.stay) setTimeout(()=>a.classList.remove('show'),3500);}
+  if(s.status==='FT'){$('restartOverlay').classList.add('show');}else{$('restartOverlay').classList.remove('show');}
+}
+
+tick(); setInterval(tick, 1200);
+</script>
+</body>
+</html>
